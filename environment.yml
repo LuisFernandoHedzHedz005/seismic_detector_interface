@@ -87,4 +87,3 @@ dependencies:
       - typing-extensions==4.12.2
       - tzdata==2025.1
       - urllib3==2.3.0
-prefix: /home/dracs/anaconda3/envs/flask_seisbench
