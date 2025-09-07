@@ -37,7 +37,7 @@ Este proyecto implementa una interfaz web para la detección automática de onda
 1. Clona el repositorio:
     ```sh
     git clone https://github.com/LuisFernandoHedzHedz005/seismic_detector_interface.git
-    cd seisbench/seismic_detector_interface
+    cd seismic_detector_interface
     ```
 2. Instala las dependencias:
     ```sh
