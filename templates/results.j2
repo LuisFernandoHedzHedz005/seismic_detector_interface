@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados - Detector Sísmico</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .file-tabs { margin-bottom: 20px; border-bottom: 1px solid #dee2e6; }
+        .file-tabs .nav-link {
+            border: 1px solid transparent;
+            border-top-left-radius: .25rem;
+            border-top-right-radius: .25rem;
+            color: #007bff;
+            padding: .5rem 1rem;
+            margin-bottom: -1px;
+        }
+        .file-tabs .nav-link.active {
+            color: #495057;
+            background-color: #fff;
+            border-color: #dee2e6 #dee2e6 #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero-section">
+        <div class="container">
+            <h1 class="display-5 mb-3">
+                <i class="fas fa-chart-line me-3"></i>
+                Resultados del Análisis Sísmico
+            </h1>
+            <p class="lead">Visualización de detecciones de ondas P y S</p>
+        </div>
+    </div>
+
+    <div class="container my-4">
+        <div class="results-header">
+            <div class="row">
+                <div class="col-md-8">
+                    <h3><i class="fas fa-info-circle me-2"></i>Información del Procesamiento</h3>
+                    <p class="mb-2"><strong>ID del trabajo:</strong> {{ job_id }}</p>
+                    <p class="mb-2"><strong>Archivos procesados:</strong> {{ results.processed_files }}/{{ results.total_files }}</p>
+                    <p class="mb-2"><strong>Duración de ventana:</strong> {{ results.window_length }} minutos</p>
+                    <p class="mb-2"><strong>Dataset utilizado:</strong> {{ results.dataset }}</p>
+                    <p class="mb-0"><strong>Modelos utilizados:</strong> EQTransformer, PhaseNet, GPD</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="stats-card">
+                        <h5><i class="fas fa-wave-square me-2"></i>Estadísticas</h5>
+                        <p class="mb-1">Filtros aplicados: 4</p>
+                        <p class="mb-0">Ventanas generadas: {{ total_windows }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="file-tabs">
+            <ul class="nav nav-tabs" id="fileTab" role="tablist">
+                {% for file_name in all_images_data.keys() %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ loop.index0 }}"
+                            data-bs-toggle="tab" data-bs-target="#content-{{ loop.index0 }}"
+                            type="button" role="tab" aria-controls="content-{{ loop.index0 }}"
+                            aria-selected="{{ 'true' if loop.first else 'false' }}"
+                            data-file-index="{{ loop.index0 }}">
+                        <i class="fas fa-file-invoice me-1"></i>{{ file_name }}
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="tab-content" id="fileTabContent">
+            {% for file_name, file_images in all_images_data.items() %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index0 }}"
+                 role="tabpanel" aria-labelledby="tab-{{ loop.index0 }}">
+                <div class="filter-nav mb-3">
+                    <div class="btn-group-sm" role="group">
+                        {% set filters = ['comparison', 'original', '0.5-2Hz', '2-4Hz', '5-10Hz', '1-15Hz'] %}
+                        {% for f in filters %}
+                        <button type="button"
+                                class="btn btn-outline-primary btn-filter {% if loop.first %}active{% endif %}"
+                                data-filter="{{ f }}">
+                            {% if f == 'comparison' %}
+                                <i class="fas fa-layer-group me-1"></i>Comparativo
+                            {% elif f == 'original' %}
+                                <i class="fas fa-signal me-1"></i>Original
+                            {% else %}
+                                <i class="fas fa-wave-square me-1"></i>{{ f }}
+                            {% endif %}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="window-nav mb-3" id="windowNav-{{ loop.index0 }}">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <span>Ventana: <span id="currentWindow-{{ loop.index0 }}">1</span>
+                            de <span id="totalWindows-{{ loop.index0 }}">{{ total_windows_per_file[file_name] or 0 }}</span></span>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-outline-secondary btn-sm prev-window-btn"
+                                        data-file-index="{{ loop.index0 }}">
+                                    <i class="fas fa-chevron-left"></i> Anterior
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm next-window-btn"
+                                        data-file-index="{{ loop.index0 }}">
+                                    Siguiente <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% macro render_gallery(id_prefix, icon, title, images, file_index) -%}
+                <div class="image-gallery" id="{{ id_prefix }}Gallery-{{ file_index }}" style="display: none;"
+                     data-file-index="{{ file_index }}">
+                    <h2 class="section-title"><i class="fas fa-{{ icon }} me-2"></i>{{ title }} - {{ file_name }}</h2>
+                    <div class="image-viewer-container">
+                        {% if images %}
+                            {% for img in images %}
+                            <div class="image-wrapper" data-window="{{ loop.index0 }}"
+                                 style="display: {{ 'block' if loop.first else 'none' }};">
+                                <img src="{{ url_for('serve_image', job_id=job_id, image_path=img) }}"
+                                     class="gallery-image img-fluid"
+                                     alt="{{ title }} ventana {{ loop.index }}"
+                                     data-bs-toggle="modal"
+                                     data-bs-target="#imageModal"
+                                     data-image-src="{{ url_for('serve_image', job_id=job_id, image_path=img) }}"
+                                     data-image-title="{{ title }} {{ file_name }} - Ventana {{ loop.index }}">
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="no-images alert alert-info text-center">
+                                <i class="fas fa-image fa-3x mb-3"></i>
+                                <p>No se encontraron imágenes para {{ title }} en {{ file_name }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {%- endmacro %}
+
+                {# Guarda el índice del bucle de archivo actual para usarlo dentro de los macros #}
+                {% set current_file_tab_index = loop.index0 %}
+
+                {{ render_gallery('comparison', 'layer-group', 'Análisis Comparativo', file_images.comparison, current_file_tab_index) }}
+                {{ render_gallery('original',   'signal',      'Señal Original',       file_images.original, current_file_tab_index) }}
+                {% for ft, imgs in file_images.filtered.items() %}
+                    {{ render_gallery(ft.replace('.', '_').replace('-', '_'), 'wave-square', 'Filtro ' ~ ft, imgs, current_file_tab_index) }}
+                {% endfor %}
+
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('download_results', job_id=job_id) }}" class="btn btn-success btn-lg me-3">
+                <i class="fas fa-download me-2"></i>Descargar Resultados
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
+            </a>
+        </div>
+    </div>
+
+    <div class="modal fade" id="imageModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalTitle">Vista Ampliada</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="" alt="Vista ampliada" style="max-width: 100%; height: auto;">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button class="btn btn-primary" id="downloadImage">
+                        <i class="fas fa-download me-2"></i>Descargar Imagen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-white text-center py-4 mt-5">
+        <div class="container">
+            <p>&copy; 2024 Detector Sísmico. Análisis completado exitosamente.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentFilter = 'comparison';
+        let currentWindowIndex = {};
+        let totalWindowsPerFile = {{ total_windows_per_file | tojson }};
+        let allImagesData = {{ all_images_data | tojson }};
+        let activeFiles = Object.keys(allImagesData);
+        let currentFileIndex = 0;
+
+        // Función para crear un ID válido para HTML
+        function createValidId(str) {
+            return str.replace(/[^a-zA-Z0-9]/g, '_');
+        }
+
+        // Función para normalizar nombres de filtros
+        function normalizeFilterName(filterName) {
+            return filterName.replace(/\./g, '_').replace(/-/g, '_');
+        }
+
+        // Inicializar índices para todos los archivos y filtros
+        activeFiles.forEach((fn, index) => {
+            currentWindowIndex[index] = {};
+            ['comparison', 'original'].concat(Object.keys(allImagesData[fn].filtered || {}))
+                .forEach(f => currentWindowIndex[index][f] = 0);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            showCurrentFilter();
+            updateWindowAndFileDisplay();
+        });
+
+        // Escuchar cambios de pestaña
+        document.getElementById('fileTab').addEventListener('shown.bs.tab', function (event) {
+            const activatedTabButton = event.target;
+            currentFileIndex = parseInt(activatedTabButton.dataset.fileIndex);
+            showCurrentFilter();
+            updateWindowAndFileDisplay();
+        });
+
+        // Listeners para los botones de filtro
+        document.querySelectorAll('.btn-filter').forEach(btn =>
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                showCurrentFilter();
+            })
+        );
+
+        // Listeners para navegación de ventanas
+        document.querySelectorAll('.prev-window-btn').forEach(btn =>
+            btn.addEventListener('click', () => {
+                const fileIndex = parseInt(btn.dataset.fileIndex);
+                if (currentWindowIndex[fileIndex][currentFilter] > 0) {
+                    currentWindowIndex[fileIndex][currentFilter]--;
+                    updateWindowAndFileDisplay();
+                }
+            })
+        );
+
+        document.querySelectorAll('.next-window-btn').forEach(btn =>
+            btn.addEventListener('click', () => {
+                const fileIndex = parseInt(btn.dataset.fileIndex);
+                const fileName = activeFiles[fileIndex];
+                let arr = getImagesArray(fileName, currentFilter);
+                if (currentWindowIndex[fileIndex][currentFilter] < arr.length - 1) {
+                    currentWindowIndex[fileIndex][currentFilter]++;
+                    updateWindowAndFileDisplay();
+                }
+            })
+        );
+
+        function getImagesArray(fileName, filter) {
+            if (filter === 'comparison') {
+                return allImagesData[fileName].comparison || [];
+            } else if (filter === 'original') {
+                return allImagesData[fileName].original || [];
+            } else {
+                return (allImagesData[fileName].filtered && allImagesData[fileName].filtered[filter]) || [];
+            }
+        }
+
+        function showCurrentFilter() {
+            console.log('Mostrando filtro:', currentFilter, 'para archivo index:', currentFileIndex);
+            
+            // Ocultar todas las galerías
+            document.querySelectorAll('.image-gallery').forEach(g => g.style.display = 'none');
+
+            // Crear el ID de la galería para el filtro actual
+            let galleryId;
+            if (currentFilter === 'comparison' || currentFilter === 'original') {
+                galleryId = `${currentFilter}Gallery-${currentFileIndex}`;
+            } else {
+                const normalizedFilter = normalizeFilterName(currentFilter);
+                galleryId = `${normalizedFilter}Gallery-${currentFileIndex}`;
+            }
+
+            console.log('Buscando galería con ID:', galleryId);
+            
+            // Mostrar la galería correspondiente
+            const gallery = document.getElementById(galleryId);
+            if (gallery) {
+                gallery.style.display = 'block';
+                console.log('Galería encontrada y mostrada');
+            } else {
+                console.error('No se encontró la galería con ID:', galleryId);
+                // Listar todos los IDs de galerías disponibles para debug
+                const allGalleries = document.querySelectorAll('.image-gallery');
+                console.log('Galerías disponibles:', Array.from(allGalleries).map(g => g.id));
+            }
+
+            updateWindowAndFileDisplay();
+        }
+
+        function updateWindowAndFileDisplay() {
+            const fileName = activeFiles[currentFileIndex];
+            
+            // Asegurar que el índice existe
+            if (!currentWindowIndex[currentFileIndex]) {
+                currentWindowIndex[currentFileIndex] = {};
+            }
+            if (currentWindowIndex[currentFileIndex][currentFilter] === undefined) {
+                currentWindowIndex[currentFileIndex][currentFilter] = 0;
+            }
+
+            const idx = currentWindowIndex[currentFileIndex][currentFilter];
+            
+            // Actualizar contadores
+            const currentWindowEl = document.getElementById(`currentWindow-${currentFileIndex}`);
+            const totalWindowsEl = document.getElementById(`totalWindows-${currentFileIndex}`);
+            
+            if (currentWindowEl) currentWindowEl.textContent = idx + 1;
+            if (totalWindowsEl) totalWindowsEl.textContent = totalWindowsPerFile[fileName] || 0;
+
+            // Actualizar visualización de imágenes
+            let galleryId;
+            if (currentFilter === 'comparison' || currentFilter === 'original') {
+                galleryId = `${currentFilter}Gallery-${currentFileIndex}`;
+            } else {
+                const normalizedFilter = normalizeFilterName(currentFilter);
+                galleryId = `${normalizedFilter}Gallery-${currentFileIndex}`;
+            }
+
+            const gallery = document.getElementById(galleryId);
+            if (gallery) {
+                const wrappers = gallery.querySelectorAll('.image-wrapper');
+                wrappers.forEach(w => w.style.display = 'none');
+                
+                if (wrappers[idx]) {
+                    wrappers[idx].style.display = 'block';
+                }
+            }
+
+            // Actualizar estado de botones
+            const arr = getImagesArray(fileName, currentFilter);
+            const prevBtn = document.querySelector(`#windowNav-${currentFileIndex} .prev-window-btn`);
+            const nextBtn = document.querySelector(`#windowNav-${currentFileIndex} .next-window-btn`);
+            
+            if (prevBtn) prevBtn.disabled = idx === 0;
+            if (nextBtn) nextBtn.disabled = idx >= arr.length - 1;
+        }
+
+        // Modal de imagen
+        document.getElementById('imageModal').addEventListener('show.bs.modal', e => {
+            const tgt = e.relatedTarget;
+            document.getElementById('modalImage').src = tgt.dataset.imageSrc;
+            document.getElementById('imageModalTitle').textContent = tgt.dataset.imageTitle;
+            document.getElementById('downloadImage').onclick = () => {
+                const link = document.createElement('a');
+                link.href = tgt.dataset.imageSrc;
+                link.download = tgt.dataset.imageTitle.replace(/\s+/g, '_') + '.png';
+                link.click();
+            };
+        });
+
+        // Navegación por teclado
+        document.addEventListener('keydown', e => {
+            if (!currentWindowIndex[currentFileIndex] || currentWindowIndex[currentFileIndex][currentFilter] === undefined) {
+                return;
+            }
+            
+            const fileName = activeFiles[currentFileIndex];
+            const idx = currentWindowIndex[currentFileIndex][currentFilter];
+            const arr = getImagesArray(fileName, currentFilter);
+            
+            if (e.key === 'ArrowLeft' && idx > 0) {
+                currentWindowIndex[currentFileIndex][currentFilter]--;
+                updateWindowAndFileDisplay();
+            } else if (e.key === 'ArrowRight' && idx < arr.length - 1) {
+                currentWindowIndex[currentFileIndex][currentFilter]++;
+                updateWindowAndFileDisplay();
+            }
+        });
+    </script>
+</body>
+</html>

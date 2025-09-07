@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detector Sísmico - EQTransformer, PhaseNet, GPD</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container">
+            <h1 class="display-4 mb-4">
+                <i class="fas fa-wave-square me-3"></i>
+                Detector Sísmico Avanzado
+            </h1>
+            <p class="lead mb-4">
+                Análisis automatizado de ondas P y S usando EQTransformer, PhaseNet y GPD
+            </p>
+            <div class="row justify-content-center">
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-light text-dark fs-6">EQTransformer</span>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-light text-dark fs-6">PhaseNet</span>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="badge bg-light text-dark fs-6">GPD</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container my-5">
+        <!-- Información de modelos -->
+        <div class="model-info">
+            <h3><i class="fas fa-brain me-2"></i>Modelos de Detección Sísmica</h3>
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>EQTransformer</h5>
+                    <p class="mb-0">Detección de eventos sísmicos y clasificación de fases</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>PhaseNet</h5>
+                    <p class="mb-0">Identificación precisa de ondas P y S</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>GPD</h5>
+                    <p class="mb-0">Detección generalizada de fases sísmicas</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Información de filtros -->
+        <div class="filter-info">
+            <h4><i class="fas fa-filter me-2"></i>Filtros Aplicados</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <ul class="mb-0">
+                        <li><strong>Original:</strong> Sin filtrar</li>
+                        <li><strong>0.5-2Hz:</strong> Teleseismos</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul class="mb-0">
+                        <li><strong>2-4Hz:</strong> Eventos regionales</li>
+                        <li><strong>5-10Hz:</strong> Eventos locales</li>
+                        <li><strong>1-15Hz:</strong> Rango amplio</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">
+                    <i class="fas fa-upload me-2"></i>
+                    Subir Archivos MSEED
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="windowLength" class="form-label">
+                        <i class="fas fa-clock me-2"></i>
+                        Duración de ventana para gráficas (minutos):
+                    </label>
+                    <input type="number" class="form-control" id="windowLength" 
+                        value="2" min="1" max="1440" step="1">
+                    <div class="form-label">
+                        Selecciona la duración en minutos para cada ventana de las gráficas (1 minuto - 24 horas/1440 minutos)
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="datasetSelect" class="form-label">
+                        <i class="fas fa-database me-2"></i>
+                        Dataset de preentrenamiento para modelos:
+                    </label>
+                    <select class="form-select" id="datasetSelect">
+                        <option value="stead" selected>STEAD (predeterminado)</option>
+                        <option value="ethz">ETHZ</option>
+                        <option value="geofon">GEOFON</option>
+                        <option value="instance">INSTANCE</option>
+                        <option value="scedc">SCEDC</option>
+                    </select>
+                    <div class="form-label">
+                        Selecciona el dataset con el que los modelos de IA fueron preentrenados.
+                    </div>
+                </div>
+                <div class="upload-zone" id="uploadZone">
+                    <i class="fas fa-file-upload fa-3x mb-3 text-muted"></i>
+                    <h4>Arrastra archivos aquí o haz clic para seleccionar</h4>
+                    <p class="text-muted">
+                        Formatos soportados: .mseed, .MSEED, .ms, .MS, .miniseed<br>
+                        Tamaño máximo total: 500MB
+                    </p>
+                    <input type="file" id="fileInput" multiple accept=".mseed,.MSEED,.ms,.MS,.miniseed,.MiniSEED" style="display: none;">
+                    <button class="btn btn-primary btn-lg mt-3" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-folder-open me-2"></i>
+                        Seleccionar Archivos
+                    </button>
+                </div>
+
+                <div id="fileList" class="file-list" style="display: none;">
+                    <h5>Archivos seleccionados:</h5>
+                    <div id="fileItems"></div>
+                    <div class="mt-3">
+                        <button class="btn btn-success btn-lg me-2" id="processBtn">
+                            <i class="fas fa-play me-2"></i>
+                            Procesar Archivos
+                        </button>
+                        <button class="btn btn-outline-secondary" id="clearBtn">
+                            <i class="fas fa-times me-2"></i>
+                            Limpiar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Section -->
+                <div class="progress-container" id="progressContainer">
+                    <h5>Progreso del Procesamiento</h5>
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="progressBar" role="progressbar" style="width: 0%">
+                            0%
+                        </div>
+                    </div>
+                    <div class="alert alert-info" id="progressMessage">
+                        Iniciando procesamiento...
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="results-section" id="resultsSection">
+                    <div class="alert alert-success">
+                        <h4><i class="fas fa-check-circle me-2"></i>Procesamiento Completado</h4>
+                        <p id="resultsInfo">Los resultados están listos para descargar.</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button class="btn btn-primary btn-lg w-100 mb-2" id="downloadBtn">
+                                <i class="fas fa-download me-2"></i>
+                                Descargar Resultados
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-info btn-lg w-100 mb-2" id="viewResultsBtn">
+                                <i class="fas fa-eye me-2"></i>
+                                Ver Gráficas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-dark text-white text-center py-4 mt-5">
+        <div class="container">
+            <p>&copy; 2024 Detector Sísmico. Powered by EQTransformer, PhaseNet & GPD</p>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedFiles = [];
+        let currentJobId = null;
+        let progressInterval = null;
+
+        // Elements
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const fileItems = document.getElementById('fileItems');
+        const processBtn = document.getElementById('processBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressMessage = document.getElementById('progressMessage');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsInfo = document.getElementById('resultsInfo');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const viewResultsBtn = document.getElementById('viewResultsBtn');
+        const datasetSelect = document.getElementById('datasetSelect'); // Nuevo elemento
+
+        // Drag and drop functionality
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            handleFiles(files);
+        });
+
+        uploadZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        function handleFiles(files) {
+            const validExtensions = ['mseed', 'MSEED', 'ms', 'MS', 'miniseed', 'MiniSEED'];
+            const validFiles = files.filter(file => {
+                const extension = file.name.split('.').pop();
+                return validExtensions.includes(extension);
+            });
+
+            if (validFiles.length === 0) {
+                alert('Por favor selecciona archivos MSEED válidos.');
+                return;
+            }
+
+            selectedFiles = validFiles;
+            displayFiles();
+        }
+
+        function displayFiles() {
+            if (selectedFiles.length === 0) {
+                fileList.style.display = 'none';
+                return;
+            }
+
+            fileItems.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <div>
+                        <i class="fas fa-file me-2"></i>
+                        <span>${file.name}</span>
+                        <small class="text-muted ms-2">(${formatFileSize(file.size)})</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                fileItems.appendChild(fileItem);
+            });
+
+            fileList.style.display = 'block';
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            displayFiles();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        processBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) {
+                alert('Por favor selecciona al menos un archivo.');
+                return;
+            }
+
+            const windowLength = document.getElementById('windowLength').value;
+            const selectedDataset = datasetSelect.value; // Obtener el dataset seleccionado
+            
+            // Validar window_length en el cliente
+            const windowLengthNum = parseInt(windowLength);
+            if (isNaN(windowLengthNum) || windowLengthNum < 1 || windowLengthNum > 1440) {
+                alert('La duración de la ventana debe ser un número entre 1 y 1440 minutos (24 horas).');
+                return;
+            }
+
+            const formData = new FormData();
+            
+            // Agregar la duración de la ventana Y el dataset ANTES de los archivos
+            formData.append('window_length', windowLength);
+            formData.append('dataset', selectedDataset); // Añadir el dataset al FormData
+            
+            // Agregar los archivos
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+
+            try {
+                processBtn.disabled = true;
+                progressContainer.style.display = 'block';
+                resultsSection.style.display = 'none';
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentJobId = data.job_id;
+                    startProgressMonitoring();
+                } else {
+                    throw new Error(data.error || 'Error al subir archivos');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                processBtn.disabled = false;
+                progressContainer.style.display = 'none';
+            }
+        });
+
+        function startProgressMonitoring() {
+            progressInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/progress/${currentJobId}`);
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        updateProgress(data);
+                        
+                        if (data.completed) {
+                            clearInterval(progressInterval);
+                            if (data.error) {
+                                showError(data.message);
+                            } else {
+                                showResults(data);
+                            }
+                        }
+                    } else {
+                        clearInterval(progressInterval);
+                        showError(data.error || 'Error desconocido');
+                    }
+                } catch (error) {
+                    clearInterval(progressInterval);
+                    showError('Error de conexión');
+                }
+            }, 2000);
+        }
+
+        function updateProgress(data) {
+            const percentage = data.percentage || 0;
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = percentage + '%';
+            progressMessage.textContent = data.message || 'Procesando...';
+        }
+
+        function showError(message) {
+            progressContainer.style.display = 'none';
+            processBtn.disabled = false;
+            alert('Error: ' + message);
+        }
+
+        function showResults(data) {
+            progressContainer.style.display = 'none';
+            resultsSection.style.display = 'block';
+            processBtn.disabled = false;
+
+            const results = data.results || {};
+            resultsInfo.textContent = `Procesamiento completado. ${results.processed_files || 0} archivos procesados exitosamente.`;
+            
+            downloadBtn.onclick = () => downloadResults();
+            viewResultsBtn.onclick = () => viewResults();
+        }
+
+        function downloadResults() {
+            if (currentJobId) {
+                window.location.href = `/download/${currentJobId}`;
+            }
+        }
+
+        function viewResults() {
+            if (currentJobId) {
+                window.open(`/results/${currentJobId}`, '_blank');
+            }
+        }
+
+        clearBtn.addEventListener('click', () => {
+            selectedFiles = [];
+            fileInput.value = '';
+            displayFiles();
+            progressContainer.style.display = 'none';
+            resultsSection.style.display = 'none';
+            processBtn.disabled = false;
+            
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
+        });
+    </script>
+
+    <script src="static/main.js"></script>
+
+</body>
+</html>
