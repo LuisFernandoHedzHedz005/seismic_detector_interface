@@ -61,8 +61,6 @@ Este proyecto implementa una interfaz web para la detección automática de onda
 
 ```
 ├── app.py                  # Aplicación principal Flask
-├── join_ZNE.py             # Utilidad para unir componentes ZNE
-├── read.py                 # Lectura de archivos
 ├── seismic_processor.py    # Procesamiento sísmico y modelos
 ├── static/                 # Archivos estáticos (JS, CSS)
 ├── templates/              # Plantillas HTML/Jinja2
